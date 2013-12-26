@@ -31,7 +31,7 @@ from redwood.filters.redwood_filter import RedwoodFilter
 
 class ExecutablePrevalence(RedwoodFilter):
     """
-    This filter provides analysis and scoring based on the prevalence of executables by extension within a single source and across all sources. The general idea is that an executable file with a higher prevalence within an extension group would have a higher reputation than an exectuable file in an extension group that occurs less often.  
+    This filter provides analysis and scoring based on the prevalence of executables by extension within a single source and across all sources. The general idea is that an executable file with a higher prevalence within an extension group would have a higher reputation than an exectuable file in an extension group that occurs less often.
     """
 
     def __init__(self, cnx=None):
@@ -68,9 +68,9 @@ class ExecutablePrevalence(RedwoodFilter):
         self.build()
 
         cursor = self.cnx.cursor()
-        
+
         src_info = core.get_source_info(self.cnx, source)
-        
+
         if src_info is None:
             print "Error: Source {} not found".format(source)
             return
@@ -88,34 +88,34 @@ class ExecutablePrevalence(RedwoodFilter):
 
         cursor.execute(query)
         self.cnx.commit()
-        
+
         #adjustment for low outliers in high prevalent directories... This could probably better be done with taking the std dev of each
-        #dir, but his will have to work for now.  
+        #dir, but his will have to work for now.
         # !! TODO
         query = """
             UPDATE  global_file_prevalence left join file_metadata ON global_file_prevalence.unique_file_id = file_metadata.unique_file_id
             LEFT JOIN global_dir_prevalence on file_metadata.unique_path_id = global_dir_prevalence.unique_path_id
-            LEFT JOIN global_dir_combined_prevalence on file_metadata.unique_path_id = global_dir_combined_prevalence.unique_path_id 
+            LEFT JOIN global_dir_combined_prevalence on file_metadata.unique_path_id = global_dir_combined_prevalence.unique_path_id
             LEFT JOIN fp_scores ON fp_scores.id = global_file_prevalence.unique_file_id
-            SET fp_scores.score = fp_scores.score * .5 
-            where file_metadata.source_id = {} AND global_file_prevalence.count = 1 and global_file_prevalence.num_systems > 2 
+            SET fp_scores.score = fp_scores.score * .5
+            where file_metadata.source_id = {} AND global_file_prevalence.count = 1 and global_file_prevalence.num_systems > 2
             and global_dir_combined_prevalence.average - global_file_prevalence.average > .6
         """.format(src_info.source_id)
-       
+
         cursor.execute(query)
         self.cnx.commit()
 
         #adjustments for low prevalent scored directories which occur often... hopefully this will exclude the caches
         # !! TODO
         query = """
-            UPDATE file_metadata 
-            LEFT JOIN global_dir_prevalence ON file_metadata.unique_path_id = global_dir_prevalence.unique_path_id 
+            UPDATE file_metadata
+            LEFT JOIN global_dir_prevalence ON file_metadata.unique_path_id = global_dir_prevalence.unique_path_id
             LEFT JOIN global_dir_combined_prevalence ON global_dir_combined_prevalence.unique_path_id = global_dir_prevalence.unique_path_id
             LEFT JOIN fp_scores ON file_metadata.unique_file_id = fp_scores.id
             SET fp_scores.score = (1 - fp_scores.score) * .25 + fp_scores.score
             where file_metadata.source_id = {} AND global_dir_prevalence.average > .8 AND global_dir_combined_prevalence.average < .5
         """.format(src_info.source_id)
-        
+
         cursor.execute(query)
         self.cnx.commit()
         cursor.close()
@@ -134,7 +134,7 @@ class ExecutablePrevalence(RedwoodFilter):
         """
 
         cursor = self.cnx.cursor()
-       
+
         # !! TODO
         query = """
             CREATE TABLE IF NOT EXISTS `ep_scores` (
@@ -145,8 +145,8 @@ class ExecutablePrevalence(RedwoodFilter):
             REFERENCES `unique_file` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
                      ) ENGINE=InnoDB
         """
- 
-        cursor.execute(query)   
+
+        cursor.execute(query)
         self.cnx.commit()
         cursor.close()
 
@@ -165,13 +165,13 @@ class ExecutablePrevalence(RedwoodFilter):
 
         :param os_name: name of the operating system
         """
-       
+
         print '[+] Running \"Histogram by OS\"..."'
         cursor = self.cnx.cursor()
-       
- 
+
+
         num_systems = core.get_num_systems(self.cnx, os_name)
-       
+
         if num_systems is None or num_systems == 0:
             print "Error: OS {} does not exist".format(os_name)
             return
@@ -189,16 +189,16 @@ class ExecutablePrevalence(RedwoodFilter):
         cursor.execute(query)
         data = cursor.fetchall()
         counts, ranges = zip(*data)
-        
+
         fig = plt.figure()
         perc = int( float(sum(counts[1:])) / sum(counts) * 100)
         ax = fig.add_subplot(111, title="File Executable Prevalence of {} with {}% > 1".format(os_name, perc))
         ax.hist(ranges, weights=counts, bins = bins)
         ax.set_xlabel("Num of Systems")
-        ax.set_ylabel("File Occurrences")    
-        
+        ax.set_ylabel("File Occurrences")
+
         plt.xticks(bins)
-        
+
         if output is None:
             plt.show()
         else:
@@ -210,22 +210,22 @@ class ExecutablePrevalence(RedwoodFilter):
         executable of a single source as it relates to all occurrences of that
         extension across all systems
 
-        :param source_name: The name of the source 
+        :param source_name: The name of the source
         """
 
         print '[+] Running \"Histogram by Source\"...'
-   
+
         cursor = self.cnx.cursor()
-        
+
         src_info = core.get_source_info(self.cnx, source_name)
-        
+
         if src_info is None:
             print "Source {} does not exist".format(source_name)
             return
-        
+
         num_systems = core.get_num_systems(self.cnx, src_info.os_id)
         bins = range(1, num_systems+2)
-       
+
         # !! TODO
         query = """
             SELECT COUNT(file_metadata.id), global_file_prevalence.count FROM global_file_prevalence 
@@ -237,21 +237,21 @@ class ExecutablePrevalence(RedwoodFilter):
         cursor.execute(query)
 
         data = cursor.fetchall()
-        
+
         if data == None:
             return
-        
+
         counts, ranges = zip(*data)
-        
+
         fig = plt.figure()
         perc = int( float(sum(counts[1:])) / sum(counts) * 100)
         ax = fig.add_subplot(111, title="File Executable  Prevalence of {} with {}% > 1".format(src_info.source_name, perc))
         ax.hist(ranges, weights=counts, bins = bins)
         ax.set_xlabel("Num of Systems")
-        ax.set_ylabel("File Occurrences")    
-        
+        ax.set_ylabel("File Occurrences")
+
         plt.xticks(bins)
-       
+
         if output is None:
             plt.show()
         else:
@@ -263,11 +263,11 @@ class ExecutablePrevalence(RedwoodFilter):
 
         :param source: source
         """
-        
+
         cursor = self.cnx.cursor()
 
         src_info = core.get_source_info(self.cnx, source)
-        
+
         if src_info is None:
             print "*** Error: Source not found"
             return
@@ -276,12 +276,12 @@ class ExecutablePrevalence(RedwoodFilter):
         #anomaly type:  low prevalence files in normally high prevalence directories
         print "Anomaly Detection: Unique files in common areas"
         print "running..."
-         
+
         # !! TODO
         query = """
             SELECT (global_dir_combined_prevalence.average - global_file_prevalence.average) as difference, 
             unique_path.full_path, file_metadata.file_name
-            FROM global_file_prevalence 
+            FROM global_file_prevalence
             LEFT JOIN file_metadata ON global_file_prevalence.unique_file_id = file_metadata.unique_file_id
             LEFT JOIN global_dir_combined_prevalence ON file_metadata.unique_path_id = global_dir_combined_prevalence.unique_path_id
             LEFT JOIN unique_path ON file_metadata.unique_path_id = unique_path.id
@@ -289,7 +289,6 @@ class ExecutablePrevalence(RedwoodFilter):
             HAVING difference > 0
             ORDER BY difference desc limit 0, 100
         """.format(src_info.source_id)
-
 
         cursor.execute(query)
 
@@ -302,33 +301,33 @@ class ExecutablePrevalence(RedwoodFilter):
             for x in cursor.fetchall():
                 f.write("{}: {}    {}{}\n".format(v, x[0], x[1], x[2]))
                 v+=1
-             
+
         cursor.close()
 
     def run_survey(self, source_name):
-        
+
         print "...running survey for {}".format(self.name)
-        
+
         resources = "resources"
         img_by_src = "hist_by_src.png"
         img_by_os = "hist_by_os.png"
         survey_file = "survey.html"
         survey_dir = "survey_{}_{}".format(self.name, source_name)
-        
-        
+
+
         resource_dir = os.path.join(survey_dir, resources) 
         html_file = os.path.join(survey_dir, survey_file)
-        
+
         try: 
             shutil.rmtree(survey_dir)
         except:
             pass
-        
+
         os.mkdir(survey_dir)
         os.mkdir(resource_dir)
-        
+
         src_info = core.get_source_info(self.cnx, source_name)
-        
+
         self.discover_histogram_by_source(source_name, os.path.join(resource_dir, img_by_src))
         self.discover_histogram_by_os(src_info.os_name, os.path.join(resource_dir, img_by_os))
         anomalies = self.discover_detect_anomalies(source_name, None)
@@ -346,11 +345,11 @@ class ExecutablePrevalence(RedwoodFilter):
                 <h3 class="redwood-header">Histogram for Operating System - {}</h3>
                 <img src="{}">
             """.format( source_name, 
-                        os.path.join(resources, img_by_src), 
+                        os.path.join(resources, img_by_src),
                         src_info.os_name,
                         os.path.join(resources, img_by_os)
                         ))
-  
+
             f.write("<h3 class=\"redwood-header\">The lowest 100 reputations for this filter</h3>")
             f.write("<table border=\"1\" id=\"redwood-table\">")
             f.write("<thead><tr><th class=\"rounded-head-left\">Score</th><th>Parent Path</th><th class=\"rounded-head-right\">Filename</th></tr></thead><tbody>")
@@ -379,5 +378,5 @@ class ExecutablePrevalence(RedwoodFilter):
                 i += 1
             #for r in anomalies:
             #    f.write("<tr><td>{}</td><td>{}</td><td>{}</td></tr>".format(r[0], r[1], r[2]))
-            f.write("</table>") 
+            f.write("</table>")
         return survey_dir
