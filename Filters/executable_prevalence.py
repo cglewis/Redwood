@@ -79,7 +79,7 @@ class ExecutablePrevalence(RedwoodFilter):
         # !! TODO
         query = """
             INSERT INTO  ep_scores(id, score)
-            SELECT global_file_prevalence.unique_file_id, IF(num_systems < 3, .5, average) 
+            SELECT global_file_prevalence.unique_file_id, IF(num_systems < 3, .5, average)
             FROM global_file_prevalence JOIN file_metadata
             ON file_metadata.unique_file_id = global_file_prevalence.unique_file_id
             where file_metadata.source_id = {}
@@ -141,7 +141,7 @@ class ExecutablePrevalence(RedwoodFilter):
             id BIGINT unsigned NOT NULL,
             score double DEFAULT NULL,
             PRIMARY KEY(id),
-            CONSTRAINT `fk_unique_file1_id` FOREIGN KEY (`id`) 
+            CONSTRAINT `fk_unique_file1_id` FOREIGN KEY (`id`)
             REFERENCES `unique_file` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
                      ) ENGINE=InnoDB
         """
@@ -149,8 +149,6 @@ class ExecutablePrevalence(RedwoodFilter):
         cursor.execute(query)
         self.cnx.commit()
         cursor.close()
-
-
 
     ##################################################
     #
@@ -168,7 +166,6 @@ class ExecutablePrevalence(RedwoodFilter):
 
         print '[+] Running \"Histogram by OS\"..."'
         cursor = self.cnx.cursor()
-
 
         num_systems = core.get_num_systems(self.cnx, os_name)
 
@@ -228,7 +225,7 @@ class ExecutablePrevalence(RedwoodFilter):
 
         # !! TODO
         query = """
-            SELECT COUNT(file_metadata.id), global_file_prevalence.count FROM global_file_prevalence 
+            SELECT COUNT(file_metadata.id), global_file_prevalence.count FROM global_file_prevalence
             LEFT JOIN file_metadata ON global_file_prevalence.unique_file_id = file_metadata.unique_file_id
             WHERE file_metadata.source_id = (SELECT media_source.id FROM media_source WHERE media_source.name = "{}")
             GROUP BY global_file_prevalence.count ORDER BY global_file_prevalence.count ASC;
@@ -318,7 +315,7 @@ class ExecutablePrevalence(RedwoodFilter):
         resource_dir = os.path.join(survey_dir, resources) 
         html_file = os.path.join(survey_dir, survey_file)
 
-        try: 
+        try:
             shutil.rmtree(survey_dir)
         except:
             pass
